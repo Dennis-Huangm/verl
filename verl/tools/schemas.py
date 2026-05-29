@@ -23,6 +23,10 @@ class OpenAIFunctionPropertySchema(BaseModel):
 
     # Union's type is list[str], e.g. ["integer", "number"] for int | float unions.
     type: str | list[str]
+    # JSON Schema numeric lower bound. Declared before ``description`` so that the
+    # serialized key order matches the Tool-SFT schema (data_synthesis/tool_sft_schema.py),
+    # keeping the rendered <tools> block byte-identical between SFT and RL rollout.
+    minimum: int | None = None
     description: str | None = None
     # JSON Schema's ``enum`` accepts any JSON value, not just strings, so
     # ``Literal[1, 2, 3]`` -> ``enum: [1, 2, 3]`` is a valid schema.

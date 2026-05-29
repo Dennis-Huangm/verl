@@ -1,0 +1,4 @@
+tools:
+  - class_name: "verl.tools.crop_image_tool.CropImageTool"
+    config:
+      type: native
