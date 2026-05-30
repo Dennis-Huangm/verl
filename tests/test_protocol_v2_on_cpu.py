@@ -149,6 +149,21 @@ def test_index_select_tensor_dict_preserves_3d_nested_tensor_layout_with_equal_s
     tu.assert_tensordict_eq(selected, tu.get_tensordict({"position_ids": expected}))
 
 
+def test_index_select_tensor_dict_handles_position_ids_unbind_failure():
+    elements = [torch.arange(833).expand(4, 833) + idx for idx in range(4)]
+    position_ids = torch.nested.as_nested_tensor(elements, layout=torch.jagged)
+    position_ids._ragged_idx = 2
+    data = tu.get_tensordict({"position_ids": position_ids})
+
+    with pytest.raises(RuntimeError, match="split_with_sizes expects split_sizes"):
+        position_ids.unbind()
+    selected = tu.index_select_tensor_dict(data, torch.tensor([1, 3]))
+
+    assert selected["position_ids"]._ragged_idx == 2
+    assert torch.equal(selected["position_ids"].unbind(0)[0], elements[1])
+    assert torch.equal(selected["position_ids"].unbind(0)[1], elements[3])
+
+
 def test_tensordict_with_images():
     # each sample contains a sequence with multiple images of different sizes
     vocab_size = 128

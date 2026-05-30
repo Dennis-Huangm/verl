@@ -4,7 +4,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "${SCRIPT_DIR}/../../.." && pwd)
-EXPERIMENT_NAME=${EXPERIMENT_NAME:-qwen3vl_4b_tool_sft_tool_grpo_full}
+EXPERIMENT_NAME=${EXPERIMENT_NAME:-qwen3vl_4b_tool_sft_tool_grpo_full_v2}
 CHECKPOINT_DIR="${REPO_ROOT}/checkpoints/verl_checkpoints/${EXPERIMENT_NAME}"
 ROLLOUT_DATA_DIR="${REPO_ROOT}/outputs/verl_rollout_logs/${EXPERIMENT_NAME}"
 LOG_DIR="${REPO_ROOT}/logs/verl/${EXPERIMENT_NAME}"
@@ -19,10 +19,10 @@ cd "${REPO_ROOT}/verl"
 python3 -m verl.trainer.main_ppo \
     algorithm.adv_estimator=grpo \
     algorithm.use_kl_in_reward=False \
-    data.train_files="${REPO_ROOT}/outputs/verl_parquet/final_sft_v6_tool/train.parquet" \
-    data.val_files="${REPO_ROOT}/outputs/verl_parquet/final_sft_v6_tool/test.parquet" \
+    data.train_files="${REPO_ROOT}/outputs/verl_parquet/final_sft_v6_rl5400_tool/train.parquet" \
+    data.val_files="${REPO_ROOT}/outputs/verl_parquet/final_sft_v6_rl5400_tool/test.parquet" \
     data.image_key=images \
-    data.train_batch_size=32 \
+    data.train_batch_size=64 \
     data.max_prompt_length=8192 \
     data.max_response_length=4096 \
     data.filter_overlong_prompts=False \
@@ -77,7 +77,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.nnodes=1 \
     trainer.save_freq=10 \
     trainer.test_freq=50 \
-    trainer.total_epochs=2 \
+    trainer.total_epochs=1 \
     trainer.val_before_train=True \
     trainer.resume_mode=auto \
     trainer.max_actor_ckpt_to_keep=5 \

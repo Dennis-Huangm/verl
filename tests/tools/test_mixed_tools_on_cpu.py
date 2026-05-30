@@ -25,7 +25,16 @@ import asyncio
 import textwrap
 from pathlib import Path
 
+import importlib.util
+
 import pytest
+
+for module_name in ("ray", "tensordict"):
+    if importlib.util.find_spec(module_name) is None:
+        pytest.skip(
+            f"{module_name} is required for full VERL tool-registry imports",
+            allow_module_level=True,
+        )
 
 from tests.tools._stub_search_tools import StubCrawlTool, StubSearchTool
 from verl.tools import function_tool as function_tool_mod
@@ -123,9 +132,13 @@ def function_tool_py_path(tmp_path: Path) -> str:
     return str(p)
 
 
-def _load_as_dict(native_yaml: str | None, function_path: str | None) -> dict[str, BaseTool | FunctionTool]:
+def _load_as_dict(
+    native_yaml: str | None, function_path: str | None
+) -> dict[str, BaseTool | FunctionTool]:
     """``load_all_tools`` keyed by tool name."""
-    tools = load_all_tools(tool_config_path=native_yaml, function_tool_path=function_path)
+    tools = load_all_tools(
+        tool_config_path=native_yaml, function_tool_path=function_path
+    )
     return {tool.name: tool for tool in tools}
 
 
@@ -173,7 +186,10 @@ def test_merged_schemas_are_well_formed(native_yaml_path, function_tool_py_path)
     """Each tool exposes a valid OpenAI function schema."""
     tools = _load_as_dict(native_yaml_path, function_tool_py_path)
 
-    schemas = {name: tool.tool_schema.model_dump(exclude_unset=True, exclude_none=True) for name, tool in tools.items()}
+    schemas = {
+        name: tool.tool_schema.model_dump(exclude_unset=True, exclude_none=True)
+        for name, tool in tools.items()
+    }
 
     for name, sch in schemas.items():
         assert sch["type"] == "function", name
@@ -182,7 +198,9 @@ def test_merged_schemas_are_well_formed(native_yaml_path, function_tool_py_path)
 
     # Native tool params come from yaml.
     assert "query_list" in schemas["search"]["function"]["parameters"]["properties"]
-    assert set(schemas["crawler"]["function"]["parameters"]["properties"]) == {"url_list"}
+    assert set(schemas["crawler"]["function"]["parameters"]["properties"]) == {
+        "url_list"
+    }
 
     # Function tool params come from signature + docstring inference.
     weather_props = schemas["get_weather"]["function"]["parameters"]["properties"]
@@ -190,7 +208,9 @@ def test_merged_schemas_are_well_formed(native_yaml_path, function_tool_py_path)
     assert weather_props["city"]["description"] == "the city to look up."
 
 
-def test_dispatch_branches_match_tool_agent_loop(native_yaml_path, function_tool_py_path):
+def test_dispatch_branches_match_tool_agent_loop(
+    native_yaml_path, function_tool_py_path
+):
     """Drive both ``ToolAgentLoop._call_tool`` branches end-to-end."""
     tools = _load_as_dict(native_yaml_path, function_tool_py_path)
 
@@ -198,7 +218,9 @@ def test_dispatch_branches_match_tool_agent_loop(native_yaml_path, function_tool
         # function tool branch -- get_weather returns dict, exercising the
         # dict -> JSON path of normalize_function_tool_return.
         weather_raw = await tools["get_weather"].call({"city": "Tokyo"})
-        weather_resp, weather_reward, weather_metrics = normalize_function_tool_return(weather_raw)
+        weather_resp, weather_reward, weather_metrics = normalize_function_tool_return(
+            weather_raw
+        )
         assert "17.3" in weather_resp.text and "drizzle" in weather_resp.text
         assert weather_reward == 0.0
         assert weather_metrics == {}
@@ -210,7 +232,9 @@ def test_dispatch_branches_match_tool_agent_loop(native_yaml_path, function_tool
         # --- BaseTool branch (create → execute → release) ---
         search_tool: StubSearchTool = tools["search"]
         instance_id, _ = await search_tool.create()
-        s_resp, s_reward, s_metrics = await search_tool.execute(instance_id, {"query_list": ["foo", "bar"]})
+        s_resp, s_reward, s_metrics = await search_tool.execute(
+            instance_id, {"query_list": ["foo", "bar"]}
+        )
         await search_tool.release(instance_id)
         assert "hits-for:foo" in s_resp.text and "hits-for:bar" in s_resp.text
         assert s_reward == 0.0
@@ -219,7 +243,9 @@ def test_dispatch_branches_match_tool_agent_loop(native_yaml_path, function_tool
 
         crawl_tool: StubCrawlTool = tools["crawler"]
         instance_id, _ = await crawl_tool.create()
-        c_resp, _, c_metrics = await crawl_tool.execute(instance_id, {"url_list": ["http://a", "http://b"]})
+        c_resp, _, c_metrics = await crawl_tool.execute(
+            instance_id, {"url_list": ["http://a", "http://b"]}
+        )
         await crawl_tool.release(instance_id)
         assert c_resp.text == "crawled:http://a,http://b"
         assert c_metrics == {"num_urls": 2}
@@ -245,12 +271,12 @@ def test_loader_is_safe_to_call_repeatedly(native_yaml_path, function_tool_py_pa
     assert runs[0]["search"] is not runs[1]["search"]
 
 
-def test_function_tool_name_collision_with_native_tool_raises(native_yaml_path, tmp_path):
+def test_function_tool_name_collision_with_native_tool_raises(
+    native_yaml_path, tmp_path
+):
     """A function tool sharing a name with a native tool must fail loudly."""
     colliding_path = tmp_path / "colliding.py"
-    colliding_path.write_text(
-        textwrap.dedent(
-            """
+    colliding_path.write_text(textwrap.dedent("""
             from verl.tools.function_tool import function_tool
 
             @function_tool("search")
@@ -261,9 +287,7 @@ def test_function_tool_name_collision_with_native_tool_raises(native_yaml_path, 
                     query_list: queries.
                 '''
                 return "from-function-tool"
-            """
-        )
-    )
+            """))
 
     with pytest.raises(ValueError, match=r"\['search'\].*collide"):
         _load_as_dict(native_yaml_path, str(colliding_path))
@@ -272,9 +296,7 @@ def test_function_tool_name_collision_with_native_tool_raises(native_yaml_path, 
 def test_function_tool_name_collision_reports_all_offenders(native_yaml_path, tmp_path):
     """Multiple collisions are surfaced together, sorted."""
     colliding_path = tmp_path / "many_colliding.py"
-    colliding_path.write_text(
-        textwrap.dedent(
-            """
+    colliding_path.write_text(textwrap.dedent("""
             from verl.tools.function_tool import function_tool
 
             @function_tool("crawler")
@@ -303,9 +325,7 @@ def test_function_tool_name_collision_reports_all_offenders(native_yaml_path, tm
                     x: x.
                 '''
                 return x
-            """
-        )
-    )
+            """))
 
     with pytest.raises(ValueError, match=r"\['crawler', 'search'\].*collide"):
         _load_as_dict(native_yaml_path, str(colliding_path))

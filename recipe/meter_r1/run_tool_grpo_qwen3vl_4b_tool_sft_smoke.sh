@@ -19,8 +19,8 @@ cd "${REPO_ROOT}/verl"
 python3 -m verl.trainer.main_ppo \
     algorithm.adv_estimator=grpo \
     algorithm.use_kl_in_reward=False \
-    data.train_files="${REPO_ROOT}/outputs/verl_parquet/final_sft_v6_tool/train.parquet" \
-    data.val_files="${REPO_ROOT}/outputs/verl_parquet/final_sft_v6_tool/test.parquet" \
+    data.train_files="${REPO_ROOT}/outputs/verl_parquet/final_sft_v6_rl5400_tool/train.parquet" \
+    data.val_files="${REPO_ROOT}/outputs/verl_parquet/final_sft_v6_rl5400_tool/test.parquet" \
     data.image_key=images \
     data.train_batch_size=32 \
     data.max_prompt_length=8192 \

@@ -414,14 +414,17 @@ def apply_monkey_patch(
             Qwen3VLForConditionalGeneration,
             Qwen3VLModel,
             Qwen3VLTextModel,
+            Qwen3VLVisionModel,
         )
         from transformers.models.qwen3_vl_moe.modeling_qwen3_vl_moe import (
             Qwen3VLMoeForConditionalGeneration,
             Qwen3VLMoeModel,
             Qwen3VLMoeTextModel,
+            Qwen3VLMoeVisionModel,
         )
 
         from verl.models.transformers.qwen3_vl import (
+            fast_pos_embed_interpolate,
             forward_with_normal_backend,
             patch_qwen3_vl_moe_sparse_moe_block_forward,
             qwen3_vl_base_forward,
@@ -437,7 +440,11 @@ def apply_monkey_patch(
         if model.config.model_type == "qwen3_vl_moe" and is_transformers_version_in_range(max_version="4.57.3"):
             patch_qwen3_vl_moe_sparse_moe_block_forward()
 
-        # Step 2: patch input for multimodal sequence parallelism
+        # Step 2: patch vision model to keep interpolation tensors on the active device.
+        Qwen3VLVisionModel.fast_pos_embed_interpolate = fast_pos_embed_interpolate
+        Qwen3VLMoeVisionModel.fast_pos_embed_interpolate = fast_pos_embed_interpolate
+
+        # Step 3: patch input for multimodal sequence parallelism
         if ulysses_sp_size > 1:
             patch_vlm_for_ulysses_input_slicing(Qwen3VLTextModel)
             patch_vlm_for_ulysses_input_slicing(Qwen3VLMoeTextModel)
